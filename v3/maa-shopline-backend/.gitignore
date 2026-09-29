@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+
+Shopline app.txt
+*.txt.keys
+.env
+.env.*
+!.env.example

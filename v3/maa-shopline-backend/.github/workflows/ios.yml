@@ -1,0 +1,91 @@
+name: ios
+# Builds and tests the iOS app on GitHub's hosted macOS runners: no local Mac needed (Windows-friendly).
+# `test` runs on every change under ios/. `testflight` runs only when started manually or on an
+# ios-v* tag, and waits for approval on the `testflight` environment before any Apple credential is used.
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+    tags: ["ios-v*"]
+  pull_request:
+    paths: ["ios/**"]
+  workflow_dispatch: {}
+permissions: {contents: read}
+defaults:
+  run: {working-directory: ios}
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Unit tests on the newest iPhone simulator (Debug, unsigned)
+        run: |
+          DEST="$(scripts/pick_simulator.sh)"
+          xcodebuild test -project MAAShopline.xcodeproj -scheme MAAShopline -destination "$DEST" \
+            CODE_SIGNING_ALLOWED=NO -resultBundlePath build/Tests.xcresult
+      - name: Release build compiles (unsigned)
+        run: |
+          xcodebuild build -project MAAShopline.xcodeproj -scheme MAAShopline -configuration Release \
+            -destination "generic/platform=iOS" CODE_SIGNING_ALLOWED=NO API_BASE_URL="https://ci.invalid"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: {name: test-results, path: ios/build/Tests.xcresult}
+
+  testflight:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ios-v')
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 45
+    environment: testflight          # add required reviewers in repo settings = human approval gate
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Check required configuration (nothing is invented here)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MAA_BUNDLE_ID: ${{ vars.MAA_BUNDLE_ID }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64 APPLE_TEAM_ID MAA_BUNDLE_ID API_BASE_URL; do
+            test -n "${!v}" || { echo "::error::missing $v"; exit 1; }
+          done
+          case "$API_BASE_URL" in https://*) ;; *) echo "::error::API_BASE_URL must be https"; exit 1;; esac
+      - name: Write signing inputs
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MAA_BUNDLE_ID: ${{ vars.MAA_BUNDLE_ID }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          printf 'MAA_BUNDLE_ID = %s\nAPPLE_TEAM_ID = %s\nAPI_BASE_URL = %s\nCURRENT_PROJECT_VERSION = %s\n' \
+            "$MAA_BUNDLE_ID" "$APPLE_TEAM_ID" "$(echo "$API_BASE_URL" | sed 's#//#/$()/#')" "${{ github.run_number }}" > Config/Local.xcconfig
+          sed -i '' "s/__APPLE_TEAM_ID__/$APPLE_TEAM_ID/" ExportOptions.plist
+      - run: xcodegen generate
+      - name: Archive (cloud-managed signing via App Store Connect API key)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild archive -project MAAShopline.xcodeproj -scheme MAAShopline -configuration Release \
+            -destination "generic/platform=iOS" -archivePath build/MAAShopline.xcarchive -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Export and upload to App Store Connect (goes to TestFlight after processing)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive -archivePath build/MAAShopline.xcarchive -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - if: always()
+        run: rm -rf "$RUNNER_TEMP/asc" Config/Local.xcconfig

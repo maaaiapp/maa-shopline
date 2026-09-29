@@ -1,0 +1,4 @@
+#include "Shared.xcconfig"
+// Local backend for simulator runs; override in Local.xcconfig.
+API_BASE_URL = http:/$()/localhost:8000
+#include? "Local.xcconfig"

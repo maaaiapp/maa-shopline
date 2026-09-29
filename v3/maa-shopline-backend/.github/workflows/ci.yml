@@ -1,0 +1,25 @@
+name: ci
+on: [push, pull_request]
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}            # full history for the secret scan
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Postgres 16 for RLS / store / queue tests
+        run: sudo apt-get update && sudo apt-get install -y postgresql-16
+      - run: pip install -r requirements.txt
+      - name: Isolation check (fails build on any main-platform identifier)
+        env:
+          SHOPLINE_SUPABASE_REF: ${{ vars.SHOPLINE_SUPABASE_REF }}
+          FORBIDDEN_IDENTIFIERS: ${{ secrets.FORBIDDEN_IDENTIFIERS }}
+        run: python scripts/isolation_check.py .
+      - name: Secret scan (working tree + git history)
+        run: python scripts/secret_scan.py . && python scripts/secret_scan.py --history .
+      - name: Tests (postgres-backed tests must not be skipped)
+        run: |
+          python -m pytest -q -rs | tee out.txt
+          ! grep -q "SKIPPED" out.txt

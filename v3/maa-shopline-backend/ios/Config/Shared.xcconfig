@@ -1,0 +1,7 @@
+// Values NOT invented here: the real bundle id and team come from CI secrets or
+// Config/Local.xcconfig (git-ignored). The default id below is for simulator builds only.
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+MAA_BUNDLE_ID = local.maa.shopline.dev
+APPLE_TEAM_ID =
+PRIVACY_POLICY_URL = https:/$()/marketingasart.art/privacy

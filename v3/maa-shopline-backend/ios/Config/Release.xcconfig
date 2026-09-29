@@ -1,0 +1,4 @@
+#include "Shared.xcconfig"
+// Replaced by CI with the deployed Render URL (https only). The app refuses non-https in Release.
+API_BASE_URL = https:/$()/REPLACE-WITH-RENDER-HOST
+#include? "Local.xcconfig"

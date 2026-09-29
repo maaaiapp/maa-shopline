@@ -1,0 +1,53 @@
+# XcodeGen spec: `xcodegen generate` produces MAAShopline.xcodeproj (not committed).
+# Runs on the GitHub macOS runner, so the project can be built from Windows.
+name: MAAShopline
+options:
+  bundleIdPrefix: art.marketingasart
+  deploymentTarget: {iOS: "17.0"}
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+targets:
+  MAAShopline:
+    type: application
+    platform: iOS
+    sources: [MAAShopline]
+    info:
+      path: MAAShopline/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: MAA for SHOPLINE
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        MAAAPIBaseURL: $(API_BASE_URL)
+        MAAPrivacyPolicyURL: $(PRIVACY_POLICY_URL)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest: {UIApplicationSupportsMultipleScenes: false}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        CFBundleLocalizations: [en, ar]
+        CFBundleURLTypes:
+          - CFBundleURLName: art.marketingasart.shopline.auth
+            CFBundleURLSchemes: [maashopline]
+        ITSAppUsesNonExemptEncryption: false   # HTTPS/TLS only; confirm export-compliance answer in App Store Connect
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MAA_BUNDLE_ID)
+        DEVELOPMENT_TEAM: $(APPLE_TEAM_ID)
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "5.0"          # Swift 6 compiler (Xcode 16), Swift 5 language mode
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+  MAAShoplineTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [MAAShoplineTests]
+    dependencies: [{target: MAAShopline}]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MAA_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MAAShopline:
+    build: {targets: {MAAShopline: all, MAAShoplineTests: [test]}}
+    test: {targets: [MAAShoplineTests], gatherCoverageData: true}

@@ -1,0 +1,31 @@
+# Render Blueprint for the MAA x SHOPLINE API. No secret values here: every `sync: false`
+# variable is entered in the Render dashboard (encrypted env vars).
+services:
+  - type: web
+    name: maa-shopline-api
+    runtime: python
+    plan: starter            # free plan sleeps; drain calls then hit cold starts (tolerated, but slower)
+    region: frankfurt        # INFRA DECISION: pick the region closest to Supabase project region
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --no-access-log   # access logs would record the OAuth ?code=
+    healthCheckPath: /health
+    envVars:
+      - {key: APP_ENV, value: prod}
+      - {key: PYTHON_VERSION, value: "3.12.7"}
+      - {key: SHOPLINE_SUPABASE_REF, sync: false}
+      - {key: SUPABASE_URL, sync: false}
+      - {key: DATABASE_URL, sync: false}
+      - {key: SHOPLINE_APP_KEY, sync: false}
+      - {key: SHOPLINE_APP_SECRET, sync: false}
+      - {key: SHOPLINE_REDIRECT_URI, sync: false}
+      - {key: SHOPLINE_SCOPES, sync: false}
+      - {key: SHOPLINE_WEBHOOK_TS_HEADER, sync: false}
+      - {key: TOKEN_ENCRYPTION_KEY, sync: false}
+      - {key: NVIDIA_API_KEY, sync: false}
+      - {key: GROQ_API_KEY, sync: false}
+      - {key: OPENROUTER_API_KEY, sync: false}
+      - {key: GEMINI_API_KEY, sync: false}
+      - {key: DRAIN_SECRET, sync: false}
+      - {key: ADMIN_TOKEN, sync: false}
+      - {key: IOS_CALLBACK_URL, value: "maashopline://auth"}
+      - {key: ALERT_WEBHOOK_URL, sync: false}

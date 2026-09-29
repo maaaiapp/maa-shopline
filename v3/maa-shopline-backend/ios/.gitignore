@@ -1,0 +1,5 @@
+MAAShopline.xcodeproj/
+Config/Local.xcconfig
+build/
+*.ipa
+DerivedData/
