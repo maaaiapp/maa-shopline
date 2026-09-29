@@ -14,7 +14,7 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Isolation check (fails build on any main-platform identifier)
         env:
-          SHOPLINE_SUPABASE_REF: ${{ vars.SHOPLINE_SUPABASE_REF }}
+          SHOPLINE_SUPABASE_REF: ${{ vars.SHOPLINE_SUPABASE_REF || secrets.SHOPLINE_SUPABASE_REF }}
           FORBIDDEN_IDENTIFIERS: ${{ secrets.FORBIDDEN_IDENTIFIERS }}
         run: python scripts/isolation_check.py .
       - name: Secret scan (working tree + git history)
