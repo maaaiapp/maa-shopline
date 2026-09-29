@@ -1,0 +1,4 @@
+Shopline app.txt
+*.env
+.env*
+!.env.example
