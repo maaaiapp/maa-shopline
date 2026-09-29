@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: maa-shopline-app
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --no-access-log
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SHOPLINE_SUPABASE_REF
+        value: infmnibutxeqeqooohhz
+      - key: FORBIDDEN_IDENTIFIERS
+        value: root
+      - key: SHOPLINE_REDIRECT_URI
+        value: https://maa-shopline-app.onrender.com/auth/shopline/callback
+      - key: DRAIN_URL
+        value: https://maa-shopline-app.onrender.com/internal/jobs/drain
+      # Sensitive secrets below are marked to sync from Render dashboard
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: DRAIN_SECRET
+        sync: false
+      - key: SHOPLINE_APP_KEY
+        sync: false
+      - key: SHOPLINE_APP_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: HUGGINGFACESHOPLINE_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

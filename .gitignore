@@ -2,3 +2,4 @@ Shopline app.txt
 *.env
 .env*
 !.env.example
+render-env-new.txt
