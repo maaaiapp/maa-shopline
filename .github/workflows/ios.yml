@@ -11,11 +11,10 @@ on:
   workflow_dispatch: {}
 permissions: {contents: read}
 defaults:
-  run: {working-directory: ios}
+  run: {working-directory: v3/maa-shopline-backend/ios}
 jobs:
   test:
     runs-on: macos-15
-    defaults: {run: {working-directory: v3/maa-shopline-backend}}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +31,7 @@ jobs:
             -destination "generic/platform=iOS" CODE_SIGNING_ALLOWED=NO API_BASE_URL="https://ci.invalid"
       - if: failure()
         uses: actions/upload-artifact@v4
-        with: {name: test-results, path: ios/build/Tests.xcresult}
+        with: {name: test-results, path: v3/maa-shopline-backend/ios/build/Tests.xcresult}
 
   testflight:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ios-v')
