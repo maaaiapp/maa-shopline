@@ -4,6 +4,7 @@ permissions: {contents: read}
 jobs:
   test:
     runs-on: ubuntu-24.04
+    defaults: {run: {working-directory: v3/maa-shopline-backend}}
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}            # full history for the secret scan

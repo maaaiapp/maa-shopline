@@ -4,10 +4,10 @@ name: ios
 # ios-v* tag, and waits for approval on the `testflight` environment before any Apple credential is used.
 on:
   push:
-    paths: ["ios/**", ".github/workflows/ios.yml"]
+    paths: ["v3/maa-shopline-backend/ios/**", ".github/workflows/ios.yml"]
     tags: ["ios-v*"]
   pull_request:
-    paths: ["ios/**"]
+    paths: ["v3/maa-shopline-backend/ios/**"]
   workflow_dispatch: {}
 permissions: {contents: read}
 defaults:
@@ -15,6 +15,7 @@ defaults:
 jobs:
   test:
     runs-on: macos-15
+    defaults: {run: {working-directory: v3/maa-shopline-backend}}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
