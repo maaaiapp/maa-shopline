@@ -16,8 +16,9 @@ from app.store import Store
 
 # Topics we subscribe to. Only the lifecycle topic is actionable until TD-06
 # confirms the order/customer/product topic list.
-ALLOWED_TOPICS = {"apps/uninstalled", "orders/create", "orders/update", "customers/create",
-                  "customers/update", "products/update"}
+ALLOWED_TOPICS = {"app/uninstalled", "apps/uninstalled", "orders/create", "orders/update",
+                  "customers/create", "customers/update", "products/update",
+                  "customers/redact", "merchants/redact"}
 
 
 @dataclass
