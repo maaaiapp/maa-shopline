@@ -165,6 +165,23 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
                                s.webhook_ts_header, s.webhook_max_age_s)
         return JSONResponse({"ok": res.status == 200}, status_code=res.status)
 
+    # Dedicated compliance endpoints. Same HMAC/shop/replay checks as /webhooks/shopline;
+    # the path supplies the topic when SHOPLINE omits the X-Shopline-Topic header.
+    async def _compliance_hook(request: Request, topic: str):
+        raw = await request.body()
+        res = webhooks.receive(st, s.shopline_app_secret, dict(request.headers), raw,
+                               s.webhook_ts_header, s.webhook_max_age_s, default_topic=topic)
+        return JSONResponse({"status": "success" if res.status == 200 else "error"},
+                            status_code=res.status)
+
+    @app.post("/webhooks/customers/redact")
+    async def customers_redact(request: Request):
+        return await _compliance_hook(request, "customers/redact")
+
+    @app.post("/webhooks/merchants/redact")
+    async def merchants_redact(request: Request):
+        return await _compliance_hook(request, "merchants/redact")
+
     @app.get("/api/connection")
     def connection(shop_id: str = Depends(shop)):
         inst = st.get_installation_by_shop(shop_id)

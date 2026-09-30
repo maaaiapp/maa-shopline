@@ -45,7 +45,7 @@ def _sent_at(h: dict[str, str], ts_header: str):
 
 
 def receive(store: Store, secret: str, headers: dict[str, str], raw: bytes,
-            ts_header: str = "", max_age_s: int = 300) -> WebhookResult:
+            ts_header: str = "", max_age_s: int = 300, default_topic: str = "") -> WebhookResult:
     h = {k.lower(): v for k, v in headers.items()}
     body_hash = hashlib.sha256(raw).hexdigest()
     if not verify_webhook(raw, h.get("x-shopline-hmac-sha256"), secret):
@@ -57,7 +57,7 @@ def receive(store: Store, secret: str, headers: dict[str, str], raw: bytes,
     if not inst:
         store.audit("webhook_unknown_shop", {"domain": domain[:128]})
         return WebhookResult(200, "rejected_shop")  # ack so SHOPLINE stops retrying; nothing persisted
-    topic = h.get("x-shopline-topic", "")
+    topic = h.get("x-shopline-topic", "") or default_topic
     if topic not in ALLOWED_TOPICS:
         return WebhookResult(200, "ignored_topic")
     sent_at = _sent_at(h, ts_header)
@@ -79,9 +79,19 @@ def receive(store: Store, secret: str, headers: dict[str, str], raw: bytes,
     except ValueError:
         store.audit("webhook_bad_json", {"webhook_id": wid})
         return WebhookResult(200, "accepted")
-    if topic == "apps/uninstalled":
+    if topic in ("app/uninstalled", "apps/uninstalled"):
         store.mark_uninstalled(handle)
         store.audit("uninstalled", {"shop_id": inst["shop_id"]})
+    elif topic == "merchants/redact":
+        # Compliance: erase everything MAA holds for this shop (erase_shop writes its own audit row).
+        erased = hasattr(store, "erase_shop") and store.erase_shop(inst["shop_id"])
+        if not erased:
+            store.audit("merchant_redact_noop", {"shop_id": inst["shop_id"]})
+    elif topic == "customers/redact":
+        # Compliance: MAA keeps no per-customer records, so record the request (ids only, no PII).
+        cust = payload.get("customer") if isinstance(payload.get("customer"), dict) else {}
+        store.audit("customer_redact_requested", {"shop_id": inst["shop_id"],
+                                                  "customer_id": str(cust.get("id", ""))[:64]})
     else:
         store.enqueue({"kind": "sync", "shop_id": inst["shop_id"], "topic": topic,
                        "object_id": str(payload.get("id", ""))[:64], "idempotency_key": f"wh:{wid}"})
