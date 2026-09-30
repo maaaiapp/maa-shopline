@@ -24,6 +24,20 @@ PROVIDER_HOSTS = {
 }
 SHOPLINE_HOST_RE = re.compile(r"^[a-z0-9-]+\.myshopline\.com$")
 
+# SHOPLINE rejects /oauth/authorize with "scope param is not null" when scope is
+# blank, so an unset/empty SHOPLINE_SCOPES must never reach the authorize URL.
+DEFAULT_SHOPLINE_SCOPES = "read_products,write_products,read_orders,write_orders"
+
+
+def normalize_scopes(raw: str | None) -> str:
+    """Comma-separated, whitespace-stripped, de-duplicated scopes; default if empty."""
+    seen: list[str] = []
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if part and part not in seen:
+            seen.append(part)
+    return ",".join(seen) or DEFAULT_SHOPLINE_SCOPES
+
 
 class IsolationError(RuntimeError):
     pass
@@ -38,7 +52,7 @@ class Settings:
     shopline_app_key: str = ""
     shopline_app_secret: str = ""
     shopline_redirect_uri: str = ""
-    shopline_scopes: str = ""
+    shopline_scopes: str = DEFAULT_SHOPLINE_SCOPES
     token_encryption_key: str = ""
     nvidia_api_key: str = ""
     groq_api_key: str = ""
@@ -63,7 +77,7 @@ class Settings:
             shopline_app_key=g("SHOPLINE_APP_KEY", ""),
             shopline_app_secret=g("SHOPLINE_APP_SECRET", ""),
             shopline_redirect_uri=g("SHOPLINE_REDIRECT_URI", ""),
-            shopline_scopes=g("SHOPLINE_SCOPES", ""),
+            shopline_scopes=normalize_scopes(g("SHOPLINE_SCOPES")),
             token_encryption_key=g("TOKEN_ENCRYPTION_KEY", ""),
             nvidia_api_key=g("NVIDIA_API_KEY", ""),
             groq_api_key=g("GROQ_API_KEY", ""),

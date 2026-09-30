@@ -9,11 +9,11 @@ import json
 import re
 import secrets
 import time
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 
-from app.config import Settings
+from app.config import Settings, normalize_scopes
 from app.policy.access_policy import require
 from app.security.crypto import TokenCipher
 from app.shopline.signing import sign_post, verify_params
@@ -39,9 +39,17 @@ def authorize_url(s: Settings, store: Store, handle: str, client: str = "web") -
         raise OAuthError("invalid store handle")
     state = secrets.token_urlsafe(24) + (IOS_STATE_SUFFIX if client == "ios" else "")
     store.save_oauth_state(state, handle)
-    return (f"https://{handle}.myshopline.com/admin/oauth-web/#/oauth/authorize"
-            f"?appKey={quote(s.shopline_app_key)}&responseType=code&scope={quote(s.shopline_scopes)}"
-            f"&redirectUri={quote(s.shopline_redirect_uri, safe='')}&customField={quote(state)}")
+    # Order and names per SHOPLINE docs: appKey, responseType, scope, redirectUri.
+    # scope is always a non-empty comma-separated list (commas left literal).
+    # customField carries our single-use state and is verified in handle_callback.
+    query = urlencode(
+        [("appKey", s.shopline_app_key),
+         ("responseType", "code"),
+         ("scope", normalize_scopes(s.shopline_scopes)),
+         ("redirectUri", s.shopline_redirect_uri),
+         ("customField", state)],
+        quote_via=quote, safe=",")
+    return f"https://{handle}.myshopline.com/admin/oauth-web/#/oauth/authorize?{query}"
 
 
 def handle_callback(s: Settings, store: Store, params: dict[str, str], http: httpx.Client) -> str:
