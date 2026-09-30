@@ -16,7 +16,8 @@ from datetime import date
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.config import IsolationError, Settings, assert_isolated
 from app.inference.gateway import Gateway, Policy
@@ -48,6 +49,10 @@ def read_session(secret: str, token: str) -> str | None:
         return None
 
 
+SHOPLINE_ORIGIN_RE = r"https://([a-z0-9-]+\.)*(myshopline|shoplineapp)\.com"
+FRAME_ANCESTORS_CSP = "frame-ancestors 'self' https://*.myshopline.com https://*.shoplineapp.com;"
+
+
 def create_app(settings: Settings | None = None, store: Store | None = None,
                gateway: Gateway | None = None, http: httpx.Client | None = None) -> FastAPI:
     s = settings or Settings.from_env()
@@ -70,6 +75,18 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     session_secret = hashlib.sha256(("session:" + s.token_encryption_key).encode()).hexdigest()
     app = FastAPI(title="MAA × SHOPLINE backend", docs_url=None if s.env == "prod" else "/docs")
 
+    # SHOPLINE Admin embeds the app in an iframe: allow only SHOPLINE origins to frame it / call it.
+    app.add_middleware(CORSMiddleware, allow_origin_regex=SHOPLINE_ORIGIN_RE, allow_credentials=False,
+                       allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Authorization", "Content-Type"])
+
+    @app.middleware("http")
+    async def _frame_headers(request: Request, call_next):
+        resp = await call_next(request)
+        resp.headers["Content-Security-Policy"] = FRAME_ANCESTORS_CSP
+        if "x-frame-options" in resp.headers:
+            del resp.headers["x-frame-options"]   # superseded by frame-ancestors; would block the iframe
+        return resp
+
     gw.alert = alert
 
     @app.exception_handler(Exception)
@@ -90,6 +107,18 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         if not inst or inst.get("status") != "active":        # uninstall revokes every issued session
             raise HTTPException(401, "session_revoked")
         return shop_id
+
+    @app.get("/", response_class=HTMLResponse)
+    def launch(handle: str = ""):
+        """App URL opened by SHOPLINE Admin (in an iframe). Never hangs: always answers 200 at once.
+        With a valid shop handle, start OAuth in the TOP window (SHOPLINE's authorize page cannot be framed)."""
+        if handle and oauth.valid_handle(handle):
+            target = json.dumps(f"/auth/shopline/start?handle={handle}")
+            return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>MAA</title><p>Connecting…</p>"
+                                f"<script>var u=new URL({target},location.href).href;"
+                                f"try{{window.top.location.href=u}}catch(e){{location.href=u}}</script>",
+                                headers={"Cache-Control": "no-store"})
+        return HTMLResponse("<!doctype html><meta charset=utf-8><title>MAA</title><p>MAA × SHOPLINE is running.</p>")
 
     @app.get("/health")
     def health():
