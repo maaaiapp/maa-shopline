@@ -40,9 +40,21 @@ def _uuid_or_none(v: Any) -> str | None:
 
 class PgStore:
     def __init__(self, dsn: str, min_size: int = 1, max_size: int = 5):
-        self.pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, open=True,
-                                   kwargs={"autocommit": True, "prepare_threshold": None,
-                                           "row_factory": dict_row})
+        clean_dsn = dsn
+        if clean_dsn.startswith("postgres://"):
+            clean_dsn = clean_dsn.replace("postgres://", "postgresql://", 1)
+
+        self.pool = ConnectionPool(
+            clean_dsn,
+            min_size=min_size,
+            max_size=max_size,
+            open=True,
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": None,
+                "row_factory": dict_row,
+            },
+        )
 
     def close(self):
         self.pool.close()

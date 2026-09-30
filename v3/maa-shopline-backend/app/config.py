@@ -90,7 +90,7 @@ def assert_isolated(s: Settings) -> None:
         if host != f"{ref}.supabase.co":
             problems.append(f"SUPABASE_URL host {host!r} is not the SHOPLINE project")
     if s.database_url:
-        # Supabase DB hosts/users carry the project ref (db.<ref>.supabase.co or postgres.<ref>@pooler)
+        # Supabase DB hosts/users carry the project ref (db.<ref>.supabase.co or postgres.<ref>@pooler or pooler.supabase.com)
         if ref not in s.database_url:
             problems.append("DATABASE_URL does not reference the SHOPLINE project ref")
     for ep in s.extra_endpoints:
