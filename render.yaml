@@ -4,21 +4,18 @@ services:
     env: python
     region: singapore
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --no-access-log
-    healthCheckPath: /healthz
+    buildCommand: cd v3/maa-shopline-backend && pip install -r requirements.txt
+    startCommand: cd v3/maa-shopline-backend && uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --no-access-log
+    healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: production
       - key: SHOPLINE_SUPABASE_REF
         value: infmnibutxeqeqooohhz
-      - key: FORBIDDEN_IDENTIFIERS
-        value: root
       - key: SHOPLINE_REDIRECT_URI
         value: https://maa-shopline-app.onrender.com/auth/shopline/callback
       - key: DRAIN_URL
         value: https://maa-shopline-app.onrender.com/internal/jobs/drain
-      # Sensitive secrets below are marked to sync from Render dashboard
       - key: TOKEN_ENCRYPTION_KEY
         sync: false
       - key: ADMIN_TOKEN
